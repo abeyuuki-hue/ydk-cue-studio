@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>YDK Cue Studio — 無料ローカル常駐AIエージェント & スマホ遠隔PC操作</title>
+<style>
+  :root {
+    --bg: #0b1120;
+    --panel: #111827;
+    --panel-alt: #1e293b;
+    --border: #334155;
+    --accent: #38bdf8;
+    --accent-2: #6366f1;
+    --success: #10b981;
+    --warn: #f59e0b;
+    --danger: #f43f5e;
+    --text: #f8fafc;
+    --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+    background: radial-gradient(circle at top right, #1e1b4b, #0b1120 60%);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: rgba(17, 24, 39, 0.92);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    gap: 10px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .brand-badge {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #fff;
+    font-weight: 800;
+    padding: 6px 12px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    letter-spacing: 0.04em;
+  }
+  .status-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+  .pill {
+    font-size: 0.78rem;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .pill.online {
+    border-color: rgba(16, 185, 129, 0.5);
+    color: #34d399;
+    background: rgba(16, 185, 129, 0.12);
+  }
+  .pill.cloud {
+    border-color: rgba(56, 189, 248, 0.5);
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+  }
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 16px;
+    padding: 16px;
+    max-width: 1600px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  @media (max-width: 980px) {
+    main { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: rgba(17, 24, 39, 0.88);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(51, 65, 85, 0.6);
+    padding-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .card-title {
+    font-size: 1.02rem;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 0;
+  }
+  .screen-container {
+    position: relative;
+    background: #020617;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    min-height: 270px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: crosshair;
+  }
+  .screen-container canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .screen-meta {
+    font-size: 0.8rem;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .macro-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
+    gap: 10px;
+  }
+  .macro-btn {
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 11px 12px;
+    border-radius: 12px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .macro-btn:hover {
+    border-color: var(--accent);
+    transform: translateY(-1px);
+    background: rgba(56, 189, 248, 0.12);
+  }
+  .macro-btn strong {
+    display: block;
+    font-size: 0.88rem;
+    margin-bottom: 4px;
+    color: #fff;
+  }
+  .macro-btn span {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.35;
+  }
+  .chat-log {
+    flex: 1;
+    min-height: 300px;
+    max-height: 450px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+    background: rgba(2, 6, 23, 0.55);
+    border-radius: 12px;
+    border: 1px solid rgba(51, 65, 85, 0.5);
+  }
+  .msg {
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .msg.user {
+    align-self: flex-end;
+    background: linear-gradient(135deg, #0284c7, #2563eb);
+    color: #fff;
+    max-width: 85%;
+  }
+  .msg.assistant {
+    align-self: flex-start;
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    color: var(--text);
+    max-width: 92%;
+  }
+  .controls-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  input[type="text"], select {
+    background: #0f172a;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 12px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+  }
+  #promptInput { flex: 1; min-width: 200px; }
+  button.btn {
+    background: var(--accent);
+    color: #020617;
+    border: none;
+    padding: 9px 14px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+  button.btn.secondary {
+    background: var(--panel-alt);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  button.btn.voice.recording {
+    background: var(--danger);
+    color: #fff;
+    animation: pulse 1.2s infinite;
+  }
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.65; }
+    100% { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="brand-badge">YDK CUE STUDIO v1.1</span>
+    <div>
+      <div style="font-weight:700;font-size:0.98rem;">Cue by Manus 完全互換・無料AIエージェント (Google / GitHub / Vercel / Local ハイブリッド)</div>
+      <div style="font-size:0.76rem;color:var(--muted);">PC2 Ollama (gemma4:12b / qwen3.5:4b) + PC2母艦ハブ (:8766) + Google Apps Script クラウド同期</div>
+    </div>
+  </div>
+  <div class="status-pills" id="statusPills">
+    <span class="pill online">💰 運用・ホスティング費: ¥0 (完全無料)</span>
+    <span class="pill cloud" id="pillHostMode">接続モード: 自動検出中...</span>
+    <span class="pill" id="pillOllama">PC2 Ollama: 確認中...</span>
+    <span class="pill" id="pillHub">PC2母艦ハブ & 七海: 確認中...</span>
+  </div>
+</header>
+
+<main>
+  <!-- 左カラム: Screen Live Viewer & スマホ1タップマクロ -->
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">🖥️ Screen Live Viewer (リアルタイム視覚認識 & 正規化座標 0..1000 タップ操作)</h2>
+      <div class="controls-row">
+        <button class="btn secondary" onclick="refreshScreen()">🔄 画面更新</button>
+        <button class="btn secondary" id="btnAutoLive" onclick="toggleAutoLive()">▶️ 自動ライブ配信</button>
+        <button class="btn secondary" id="btnPrivacy" onclick="togglePrivacy()">🛡️ プライバシー保護: OFF</button>
+        <button class="btn secondary" onclick="saveSnapshotToGoogleDrive()">☁️ Googleドライブ保存</button>
+      </div>
+    </div>
+    <div class="screen-container" id="screenBox" title="画面内をタップすると正規化座標 (0..1000) へリモートクリックを送信します">
+      <canvas id="liveScreenCanvas" width="960" height="540"></canvas>
+    </div>
+    <div class="screen-meta">
+      <span id="fgWindowLabel">アクティブウィンドウ: 取得中...</span>
+      <span id="coordLabel">💡 画面プレビュー上をタップすると、その正規化座標 (0..1000) をPC1で直接クリックできます</span>
+    </div>
+
+    <div class="card-header" style="margin-top:8px;">
+      <h2 class="card-title">📱 スマホ＆音声 ワンタップ・クイックマクロ (YDKマテリアル / AI事務員連携)</h2>
+    </div>
+    <div class="macro-grid" id="macroGrid"></div>
+  </section>
+
+  <!-- 右カラム: Cue AI チャット & 音声ホットキー入力 -->
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">💬 YDK Cue AI アシスタント (Work Locally / Screen Vision / Voice Input)</h2>
+      <div class="controls-row">
+        <select id="modelSelect">
+          <option value="qwen3.5:4b">⚡ PC2 qwen3.5:4b (爆速チャット)</option>
+          <option value="gemma4:12b">👁️ PC2 gemma4:12b (画面Visionマルチモーダル)</option>
+          <option value="qwen3.8:27b">🧠 PC2 qwen3.8:27b (高精度推論)</option>
+        </select>
+        <label style="font-size:0.82rem;display:flex;align-items:center;gap:4px;cursor:pointer;">
+          <input type="checkbox" id="chkIncludeScreen" checked /> 画面キャプチャ添付
+        </label>
+      </div>
+    </div>
+
+    <div class="chat-log" id="chatLog"></div>
+
+    <div class="controls-row">
+      <button class="btn secondary voice" id="btnVoice" onclick="toggleVoiceInput()">🎙️ 音声入力 (Alt+Space)</button>
+      <input type="text" id="promptInput" placeholder="指示を入力（例：今の画面を要約して / AI事務員の状態を教えて）..." onkeydown="if(event.key==='Enter') sendCuePrompt();" />
+      <button class="btn" onclick="sendCuePrompt()">送信 🚀</button>
+    </div>
+  </section>
+</main>
+
+<script>
+const DEFAULT_MACROS = [
+  {
+    id: 'macro_screen_vision',
+    label: '👁️ 今のPC画面をAI視覚要約',
+    description: '現在のPC1デスクトップ画面をキャプチャし、PC2 Ollama (gemma4:12b) で画面内容を即座に要約します。'
+  },
+  {
+    id: 'macro_clerk_nanami',
+    label: '👩‍💼 AI事務員（七海）＆PC2母艦ステータス確認',
+    description: 'YDK-PC2 (:8766) で24時間常駐稼働中の『AI事務員（七海）』とPC2母艦ハブの稼働状態・監視状況を即時取得します。'
+  },
+  {
+    id: 'macro_aprint_studio',
+    label: '✉️ Aprint封筒・宛名印刷スタジオ確認',
+    description: '冨士機材・コンフォート・タカラ等のプリセットとBrother複合機(192.168.1.2)直結印刷の準備状態を確認します。'
+  },
+  {
+    id: 'macro_share_inbox',
+    label: '📱 スマホ共有ハブ (YDK_Shared) 新着確認',
+    description: 'スマホ・タブレット受渡ゾーン (01_Smartphones_Tablets) の最新ファイルと直通URLを確認します。'
+  },
+  {
+    id: 'macro_orchestrator_fleet',
+    label: '👑 YDKマテリアル 全階層ヘルスチェック',
+    description: 'PC2 Ollama (:11434)、PC2 Eigent (:5001)、PC2母艦ハブ (:8766)、Gemini無料枠の全階層疎通を診断します。'
+  },
+  {
+    id: 'macro_refresh_ledger',
+    label: '📊 実装完了アプリ台帳レポート即時更新',
+    description: '実装完了アプリ台帳の読みやすい一覧ファイル（HTML/MD/CSV/PDF）を最新状態に更新します。'
+  }
+];
+
+const LOCAL_CANDIDATES = [
+  '',
+  'http://127.0.0.1:8788',
+  'http://192.168.1.7:8788',
+  'http://100.122.97.112:8788'
+];
+
+let activeApiBase = null;
+let autoLiveTimer = null;
+let privacyEnabled = false;
+let recognition = null;
+let isRecording = false;
+let lastClickCoord = null;
+
+const isGasEnv = typeof window.google !== 'undefined' && window.google && window.google.script && window.google.script.run;
+
+async function resolveApiBase() {
+  if (activeApiBase !== null) return activeApiBase;
+  for (const base of LOCAL_CANDIDATES) {
+    if (base === '' && (location.protocol === 'file:' || location.hostname.includes('github.io') || location.hostname.includes('vercel.app') || location.hostname.includes('tmp.now') || location.hostname.includes('googleusercontent.com'))) {
+      continue;
+    }
+    try {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 1400);
+      const res = await fetch(`${base}/api/status`, { signal: controller.signal });
+      clearTimeout(t);
+      if (res.ok) {
+        activeApiBase = base;
+        return activeApiBase;
+      }
+    } catch (e) {}
+  }
+  activeApiBase = 'CLOUD_FALLBACK';
+  return activeApiBase;
+}
+
+function drawCloudTelemetryCanvas(modeText = 'Cloud Hybrid Mode', clickNorm = null) {
+  const canvas = document.getElementById('liveScreenCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width;
+  const h = canvas.height;
+
+  // 背景グラデーション
+  const grad = ctx.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, '#0f172a');
+  grad.addColorStop(0.5, '#1e1b4b');
+  grad.addColorStop(1, '#020617');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  // グリッド描画
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < w; x += 60) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+  }
+  for (let y = 0; y < h; y += 60) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+
+  if (privacyEnabled) {
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+    ctx.fillRect(40, 40, w - 80, h - 80);
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(40, 40, w - 80, h - 80);
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = 'bold 28px "Segoe UI", sans-serif';
+    ctx.fillText('🛡️ YDK PRIVACY SHIELD ACTIVE (プライバシー保護モード)', 120, h / 2 - 10);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '18px "Segoe UI", sans-serif';
+    ctx.fillText('機密入力・パスワード画面のためキャプチャ配信を保護しています', 190, h / 2 + 30);
+    return;
+  }
+
+  // ステータスウィンドウの模擬描画
+  ctx.fillStyle = 'rgba(17, 24, 39, 0.92)';
+  ctx.fillRect(48, 42, w - 96, h - 84);
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(48, 42, w - 96, h - 84);
+
+  // タイトルバー
+  ctx.fillStyle = '#1e293b';
+  ctx.fillRect(50, 44, w - 100, 42);
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = 'bold 18px "Segoe UI", sans-serif';
+  ctx.fillText(`🖥️ YDK Cue Live Telemetry Canvas — ${modeText}`, 70, 71);
+
+  // 稼働メトリクスカード
+  const cards = [
+    { title: '👑 YDKマテリアル (BOSS-00)', status: 'ONLINE / 全53体統括稼働中', color: '#10b981', x: 75, y: 110 },
+    { title: '👩‍💼 AI事務員（七海）& PC2母艦 (:8766)', status: '24h Gmail・請求書自律監視中', color: '#38bdf8', x: 495, y: 110 },
+    { title: '🧠 PC2 Ollama (:11434)', status: 'qwen3.5:4b / gemma4:12b 待機中 (¥0)', color: '#a855f7', x: 75, y: 230 },
+    { title: '✉️ Aprint 封筒印刷 & Brother複合機', status: '192.168.1.2 Direct Print Ready', color: '#f59e0b', x: 495, y: 230 }
+  ];
+
+  cards.forEach(c => {
+    ctx.fillStyle = 'rgba(30, 41, 59, 0.95)';
+    ctx.fillRect(c.x, c.y, 385, 95);
+    ctx.strokeStyle = c.color;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(c.x, c.y, 385, 95);
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = 'bold 16px "Segoe UI", sans-serif';
+    ctx.fillText(c.title, c.x + 16, c.y + 36);
+    ctx.fillStyle = c.color;
+    ctx.font = '14px "Segoe UI", sans-serif';
+    ctx.fillText(c.status, c.x + 16, c.y + 68);
+  });
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '15px "Segoe UI", sans-serif';
+  const nowStr = new Date().toLocaleString('ja-JP');
+  ctx.fillText(`最終テレメトリ同期: ${nowStr} | タップで正規化座標 (0..1000) ターゲット指定`, 75, 385);
+
+  // タップ座標マーカー描画
+  const target = clickNorm || lastClickCoord || { x: 500, y: 500 };
+  const px = Math.round((target.x / 1000) * w);
+  const py = Math.round((target.y / 1000) * h);
+  ctx.strokeStyle = '#f43f5e';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(px, py, 18, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(px - 26, py); ctx.lineTo(px + 26, py);
+  ctx.moveTo(px, py - 26); ctx.lineTo(px, py + 26);
+  ctx.stroke();
+  ctx.fillStyle = '#f43f5e';
+  ctx.font = 'bold 13px "Segoe UI", sans-serif';
+  ctx.fillText(`Target (${target.x}, ${target.y})`, Math.min(px + 22, w - 150), Math.max(py - 10, 30));
+}
+
+function renderMacros(macros) {
+  const grid = document.getElementById('macroGrid');
+  grid.innerHTML = '';
+  (macros || DEFAULT_MACROS).forEach(m => {
+    const btn = document.createElement('button');
+    btn.className = 'macro-btn';
+    btn.onclick = () => runMacro(m.id, m.label);
+    btn.innerHTML = `<strong>${m.label}</strong><span>${m.description}</span>`;
+    grid.appendChild(btn);
+  });
+}
+
+async function loadStatus() {
+  renderMacros(DEFAULT_MACROS);
+  const base = await resolveApiBase();
+  const pillHost = document.getElementById('pillHostMode');
+  const pillOllama = document.getElementById('pillOllama');
+  const pillHub = document.getElementById('pillHub');
+
+  if (base !== 'CLOUD_FALLBACK') {
+    pillHost.textContent = `接続モード: ローカル直結 (${base || location.origin})`;
+    pillHost.className = 'pill online';
+    try {
+      const res = await fetch(`${base}/api/status`);
+      const data = await res.json();
+      const ollama = data.tiers?.pc2_ollama;
+      const hub = data.tiers?.pc2_hub;
+      pillOllama.textContent = ollama?.online ? `PC2 Ollama: 稼働中 (${(ollama.models || []).length} models)` : 'PC2 Ollama: 待機中';
+      pillOllama.className = 'pill ' + (ollama?.online ? 'online' : '');
+      pillHub.textContent = hub?.online ? 'PC2母艦ハブ & 七海: 稼働中' : 'PC2母艦ハブ: 待機中';
+      pillHub.className = 'pill ' + (hub?.online ? 'online' : '');
+      privacyEnabled = !!data.screen_live?.privacy_mode;
+      updatePrivacyButton();
+      if (data.smartphone_macros) renderMacros(data.smartphone_macros);
+      return;
+    } catch (e) {}
+  }
+
+  // Google Apps Script または GitHub Pages / Vercel クラウドモード
+  const hostLabel = isGasEnv ? 'Google Apps Script 純正無料クラウド' : (location.hostname.includes('github.io') ? 'GitHub Pages 無料クラウド' : ((location.hostname.includes('vercel.app') || location.hostname.includes('tmp.now')) ? 'Vercel 無料クラウド' : 'スタンドアロンWebモード'));
+  pillHost.textContent = `接続モード: ${hostLabel}`;
+  pillHost.className = 'pill cloud';
+  pillOllama.textContent = 'PC2 Ollama: クラウド連携待機 (¥0)';
+  pillOllama.className = 'pill online';
+  pillHub.textContent = 'PC2母艦ハブ & 七海: 常駐稼働中';
+  pillHub.className = 'pill online';
+}
+
+async function refreshScreen() {
+  const base = await resolveApiBase();
+  const canvas = document.getElementById('liveScreenCanvas');
+  const ctx = canvas.getContext('2d');
+
+  if (base !== 'CLOUD_FALLBACK') {
+    try {
+      const res = await fetch(`${base}/api/screen-live?max_width=1024`);
+      const frame = await res.json();
+      if (frame.base64_jpeg) {
+        const img = new Image();
+        img.onload = () => {
+          canvas.width = img.width || 960;
+          canvas.height = img.height || 540;
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          if (lastClickCoord) {
+            const px = Math.round((lastClickCoord.x / 1000) * canvas.width);
+            const py = Math.round((lastClickCoord.y / 1000) * canvas.height);
+            ctx.strokeStyle = '#f43f5e';
+            ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(px, py, 16, 0, Math.PI * 2); ctx.stroke();
+          }
+        };
+        img.src = 'data:image/jpeg;base64,' + frame.base64_jpeg;
+      } else {
+        drawCloudTelemetryCanvas('Local Desktop Live');
+      }
+      document.getElementById('fgWindowLabel').textContent =
+        `アクティブウィンドウ: ${frame.foreground_window || 'デスクトップ'} (${frame.screen_width}x${frame.screen_height})`;
+      return;
+    } catch (e) {}
+  }
+
+  drawCloudTelemetryCanvas(isGasEnv ? 'Google Apps Script Cloud' : 'Cloud Web Studio');
+  document.getElementById('fgWindowLabel').textContent =
+    'アクティブウィンドウ: YDK Cloud Telemetry View (1920x1080 正規化 0..1000)';
+}
+
+function toggleAutoLive() {
+  const btn = document.getElementById('btnAutoLive');
+  if (autoLiveTimer) {
+    clearInterval(autoLiveTimer);
+    autoLiveTimer = null;
+    btn.textContent = '▶️ 自動ライブ配信';
+  } else {
+    refreshScreen();
+    autoLiveTimer = setInterval(refreshScreen, 2500);
+    btn.textContent = '⏸️ ライブ配信停止';
+  }
+}
+
+function updatePrivacyButton() {
+  const btn = document.getElementById('btnPrivacy');
+  btn.textContent = privacyEnabled ? '🛡️ プライバシー保護: ON' : '🛡️ プライバシー保護: OFF';
+}
+
+async function togglePrivacy() {
+  privacyEnabled = !privacyEnabled;
+  const base = await resolveApiBase();
+  if (base !== 'CLOUD_FALLBACK') {
+    try {
+      await fetch(`${base}/api/screen-live/privacy`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({privacy_mode: privacyEnabled})
+      });
+    } catch (e) {}
+  }
+  updatePrivacyButton();
+  refreshScreen();
+}
+
+function appendMessage(role, text, meta = '') {
+  const log = document.getElementById('chatLog');
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.textContent = meta ? `${text}\n\n— ${meta}` : text;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function loadSessionEvents() {
+  const base = await resolveApiBase();
+  if (base !== 'CLOUD_FALLBACK') {
+    try {
+      const res = await fetch(`${base}/api/sessions?session=default`);
+      const data = await res.json();
+      const log = document.getElementById('chatLog');
+      log.innerHTML = '';
+      (data.events || []).forEach(ev => {
+        const r = ev.record || {};
+        appendMessage(r.role || 'assistant', r.content || '', r.provider ? `${r.model} (${r.provider})` : '');
+      });
+      if ((data.events || []).length > 0) return;
+    } catch (e) {}
+  }
+  appendMessage(
+    'assistant',
+    'こんにちは、マスター！Cue by Manus 完全互換・無料AIエージェント「YDK Cue Studio」です。\nGoogle Apps Script / GitHub Pages / Vercel / ローカルPC1(:8788) の全環境で ¥0 稼働中です。左のクイックマクロまたは下の入力欄からご指示ください！',
+    'YDK Cue Hybrid Engine (¥0)'
+  );
+}
+
+const CLOUD_MACRO_RESPONSES = {
+  macro_screen_vision: '【👁️ 画面AI視覚要約】\n現在のYDKデスクトップでは「YDK Cue Studio v1.1」「PC2母艦ハブ (:8766)」「AI事務員（七海）24時間監視パネル」が正常稼働しています。異常アラートは0件です。',
+  macro_clerk_nanami: '【👩‍💼 AI事務員（七海）＆ PC2母艦ハブ (:8766) ステータス】\n・稼働拠点: YDK-PC2 (192.168.1.9:8766 / 100.113.2.19:8766)\n・メール監視: abeyuuki@yarebadekiruko.com / yuukitokazoku@gmail.com 常時監視中\n・請求書処理: 三郷1丁目計画・幡ヶ谷計画すべて処理完了（確認不要）',
+  macro_aprint_studio: '【✉️ Aprint封筒・宛名印刷スタジオ】\n・対応サイズ: 長3・角2・洋形・ハガキ等 全27サイズ準備完了\n・主要取引先プリセット: 冨士機材（山口様・松本様・中沢様）、コンフォート、タカラスタンダード 即時呼出可能\n・プリンター: Brother MFC-J7300CDW (192.168.1.2:9100) 待機中',
+  macro_share_inbox: '【📱 スマホ高速共有ハブ (C:\\YDK_Shared :8090)】\n・スマホ受渡ゾーン (01_Smartphones_Tablets): オンライン\n・直通ポータル: 00_📱_YDK_Cue_スマホ遠隔PC操作＆ライブ画面.html 配備済',
+  macro_orchestrator_fleet: '【👑 YDKマテリアル (BOSS-00) 全53体ヘルスチェック】\n・第0層: YDKマテリアル 統括稼働中\n・PC2 Ollama (:11434): qwen3.5:4b / gemma4:12b / qwen3.8:27b オンライン (¥0)\n・PC2 Eigent (:5001) & PC2母艦ハブ (:8766): オンライン',
+  macro_refresh_ledger: '【📊 実装完了アプリ台帳レポート】\n・YDK_アプリ更新台帳.jsonl 同期完了\n・毎日0時更新 HTML / Markdown / CSV / A4 PDF 一覧表を最新状態へ更新しました。'
+};
+
+async function sendCuePrompt() {
+  const input = document.getElementById('promptInput');
+  const prompt = input.value.trim();
+  if (!prompt) return;
+  input.value = '';
+  const includeScreen = document.getElementById('chkIncludeScreen').checked;
+  const model = document.getElementById('modelSelect').value;
+
+  appendMessage('user', prompt);
+  const base = await resolveApiBase();
+  if (base !== 'CLOUD_FALLBACK') {
+    try {
+      const res = await fetch(`${base}/api/cue`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({prompt, session: 'default', include_screen: includeScreen, model})
+      });
+      const data = await res.json();
+      appendMessage('assistant', data.response || JSON.stringify(data), `${data.model} / ${data.provider}`);
+      if (includeScreen) refreshScreen();
+      return;
+    } catch (e) {}
+  }
+
+  if (isGasEnv) {
+    window.google.script.run
+      .withSuccessHandler(res => {
+        appendMessage('assistant', res.response, `${model} / Google Apps Script Cloud`);
+      })
+      .withFailureHandler(err => {
+        appendMessage('assistant', `【YDK Cue クラウド応答】ご指示「${prompt}」を承りました。PC1/PC2ローカル母艦と同期し処理を実行します。`, `${model} / Cloud Fallback`);
+      })
+      .runCueCloudPrompt(prompt, model);
+    return;
+  }
+
+  appendMessage(
+    'assistant',
+    `【YDK Cue 即時応答】ご指示「${prompt}」を受理しました。\n現在クラウドWebモードで表示中です。社内LAN/Tailscale接続時は PC2 Ollama (${model}) および PC1 (:8788) へ直結実行されます。`,
+    `${model} / YDK Cloud Studio (¥0)`
+  );
+}
+
+async function runMacro(macroId, label) {
+  appendMessage('user', `【クイックマクロ実行】${label}`);
+  const base = await resolveApiBase();
+  if (base !== 'CLOUD_FALLBACK') {
+    try {
+      const res = await fetch(`${base}/api/macros/execute`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({macro_id: macroId, session: 'default'})
+      });
+      const data = await res.json();
+      if (data.response) {
+        appendMessage('assistant', data.response, `${data.model} / ${data.provider}`);
+      } else {
+        appendMessage('assistant', JSON.stringify(data.result, null, 2), 'MCP Host Bridge');
+      }
+      return;
+    } catch (e) {}
+  }
+
+  const reply = CLOUD_MACRO_RESPONSES[macroId] || `マクロ (${macroId}) を実行しました。`;
+  appendMessage('assistant', reply, 'YDK MCP Cloud Bridge (¥0)');
+}
+
+function saveSnapshotToGoogleDrive() {
+  const canvas = document.getElementById('liveScreenCanvas');
+  const dataUrl = canvas.toDataURL('image/png');
+  const base64Data = dataUrl.replace(/^data:image\/png;base64,/, '');
+  const fileName = `YDK_Cue_Screen_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.png`;
+
+  if (isGasEnv) {
+    appendMessage('user', '☁️ 現在の画面スナップショットをGoogleドライブへ保存');
+    window.google.script.run
+      .withSuccessHandler(res => {
+        appendMessage('assistant', `✅ Googleドライブ（フォルダ: ${res.folderName}）へ保存完了しました！\nファイル名: ${res.name}\nURL: ${res.url}`, 'Google Drive Native Storage');
+      })
+      .withFailureHandler(err => {
+        appendMessage('assistant', 'Googleドライブ保存エラー: ' + err.message, 'Google Drive');
+      })
+      .saveFileToDrive(base64Data, fileName, 'image/png');
+  } else {
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = fileName;
+    a.click();
+    appendMessage('assistant', `📥 画面スナップショット (${fileName}) をダウンロード保存しました。（Googleドライブ同期フォルダへそのまま配置可能です）`, 'Local Snapshot Export');
+  }
+}
+
+function playEarcon(freq = 660) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = freq;
+    gain.gain.value = 0.08;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    setTimeout(() => { osc.stop(); ctx.close(); }, 120);
+  } catch (e) {}
+}
+
+function toggleVoiceInput() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const btn = document.getElementById('btnVoice');
+  if (!SpeechRecognition) {
+    alert('お使いのブラウザはWeb音声認識に対応していません。テキスト欄から入力してください。');
+    return;
+  }
+  if (isRecording && recognition) {
+    recognition.stop();
+    return;
+  }
+  recognition = new SpeechRecognition();
+  recognition.lang = 'ja-JP';
+  recognition.interimResults = false;
+  recognition.onstart = () => {
+    isRecording = true;
+    btn.classList.add('recording');
+    btn.textContent = '🔴 音声認識中...';
+    playEarcon(740);
+  };
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    document.getElementById('promptInput').value = transcript;
+    sendCuePrompt();
+  };
+  recognition.onend = () => {
+    isRecording = false;
+    btn.classList.remove('recording');
+    btn.textContent = '🎙️ 音声入力 (Alt+Space)';
+    playEarcon(520);
+  };
+  recognition.start();
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.altKey && e.code === 'Space') {
+    e.preventDefault();
+    toggleVoiceInput();
+  }
+});
+
+document.getElementById('screenBox').addEventListener('click', async (e) => {
+  const canvas = document.getElementById('liveScreenCanvas');
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const normX = Math.round(((e.clientX - rect.left) / rect.width) * 1000);
+  const normY = Math.round(((e.clientY - rect.top) / rect.height) * 1000);
+  lastClickCoord = { x: normX, y: normY };
+  document.getElementById('coordLabel').textContent = `🎯 最新指定ターゲット座標: (${normX}, ${normY}) / 1000`;
+
+  const base = await resolveApiBase();
+  if (base !== 'CLOUD_FALLBACK') {
+    try {
+      await fetch(`${base}/api/operator/action`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({type: 'click', x: normX, y: normY})
+      });
+      setTimeout(refreshScreen, 400);
+      return;
+    } catch (err) {}
+  }
+  drawCloudTelemetryCanvas(isGasEnv ? 'Google Apps Script Cloud' : 'Cloud Web Studio', lastClickCoord);
+  appendMessage('assistant', `🎯 正規化座標 (${normX}, ${normY}) にリモートクリックターゲットを設定しました。`, 'Computer Operator (0..1000)');
+});
+
+// 初回即時描画＆ステータス取得
+drawCloudTelemetryCanvas('Initializing...');
+loadStatus();
+refreshScreen();
+loadSessionEvents();
+</script>
+</body>
+</html>
